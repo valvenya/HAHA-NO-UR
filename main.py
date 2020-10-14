@@ -1,6 +1,7 @@
 '''
 A discord bot for scouting in Love Live: School Idol Festival.
 '''
+import sys
 from asyncio import get_event_loop
 from json import load
 from time import time
@@ -15,7 +16,34 @@ from logs import log_path
 from data_controller.card_updater import update_task
 
 
+from discord import channel
+class Overwrites:
+    __slots__ = ('id', 'allow', 'deny', 'type')
+
+    def __init__(self, **kwargs):
+        self.id = kwargs.pop('id')
+        self.allow = kwargs.pop('allow', 0)
+        self.deny = kwargs.pop('deny', 0)
+        self.type = kwargs.pop('type')
+
+    def _asdict(self):
+        return {
+           'id': self.id,
+            'allow': self.allow,
+            'deny': self.deny,
+            'type': self.type,
+         }  
+channel.Overwrites = Overwrites
+
+
 def main():
+    shard = None
+    shard_count = None
+    if len(sys.argv) > 2:
+        shard = int(sys.argv[1])
+        shard_count = int(sys.argv[2])
+        print(shard)
+
     start_time = int(time())
     logger = setup_logging(start_time, log_path)
     loop = get_event_loop()
@@ -30,7 +58,8 @@ def main():
 
     bot = HahaNoUR(
         config['default_prefix'], start_time, int(config['colour'], base=16),
-        logger, session_manager, db, auth['error_log'], auth['feedback_log']
+        logger, session_manager, db, auth['error_log'], auth['feedback_log'],
+        shard, shard_count
     )
 
     bot.remove_command('help')
@@ -39,13 +68,13 @@ def main():
         Album(bot), 
         Info(bot), 
         Stats(bot), 
-        Trivia(bot), 
         Config(bot)
     ]
 
-    card_update_thread = Thread(target=update_task)
-    card_update_thread.setDaemon(True)
-    card_update_thread.start()
+    if shard == 0:
+        card_update_thread = Thread(target=update_task)
+        card_update_thread.setDaemon(True)
+        card_update_thread.start()
 
     bot.start_bot(cogs, auth['token'])
 
